@@ -10,6 +10,13 @@ const {
   buildChanges,
   TRACKING_PARAM_NAMES,
 } = require('../lib.js');
+const {
+  DEFAULT_BLOCKED_STATUSES,
+  DEFAULT_RETRY_WITH_GET_STATUSES,
+  parseStatusList,
+  shouldRetryWithGet,
+  shouldTreatAsBlocked,
+} = require('../index.js');
 
 describe('isExternal', () => {
   test('http URL is external',           () => assert.equal(isExternal('http://example.com'), true));
@@ -233,6 +240,42 @@ describe('extractExternalLinks', () => {
 
   test('handles html with no anchor tags', () =>
     assert.deepEqual(extractExternalLinks('<p>No links here</p>'), []));
+});
+
+describe('link checking helpers', () => {
+  test('parseStatusList uses fallback when empty', () => {
+    assert.deepEqual(
+      [...parseStatusList('', DEFAULT_BLOCKED_STATUSES)].sort((a, b) => a - b),
+      [...DEFAULT_BLOCKED_STATUSES].sort((a, b) => a - b)
+    );
+  });
+
+  test('parseStatusList parses comma-separated status codes', () => {
+    assert.deepEqual([...parseStatusList('403, 999', DEFAULT_BLOCKED_STATUSES)], [403, 999]);
+  });
+
+  test('shouldRetryWithGet retries selected HEAD responses once', () => {
+    const statuses = parseStatusList(
+      DEFAULT_RETRY_WITH_GET_STATUSES.join(','),
+      DEFAULT_RETRY_WITH_GET_STATUSES
+    );
+
+    assert.equal(shouldRetryWithGet('HEAD', 403, false, statuses), true);
+    assert.equal(shouldRetryWithGet('GET', 403, false, statuses), false);
+    assert.equal(shouldRetryWithGet('HEAD', 403, true, statuses), false);
+    assert.equal(shouldRetryWithGet('HEAD', 404, false, statuses), false);
+  });
+
+  test('shouldTreatAsBlocked distinguishes blocked from broken', () => {
+    const statuses = parseStatusList(
+      DEFAULT_BLOCKED_STATUSES.join(','),
+      DEFAULT_BLOCKED_STATUSES
+    );
+
+    assert.equal(shouldTreatAsBlocked(403, statuses), true);
+    assert.equal(shouldTreatAsBlocked(429, statuses), true);
+    assert.equal(shouldTreatAsBlocked(404, statuses), false);
+  });
 });
 
 describe('buildChanges', () => {

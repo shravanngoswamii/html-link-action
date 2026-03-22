@@ -31,7 +31,7 @@ inputs:
   external-only:
     description: >
       When true (default), rel/target modifications only apply to external links
-      (href starting with http:// or https://).  Set to false to apply to all links.
+      (href starting with http:// or https://). Set to false to apply to all links.
     required: false
     default: 'true'
 
@@ -48,7 +48,7 @@ inputs:
     default: 'false'
 
   check-links:
-    description: 'Check all external links for broken URLs via HTTP HEAD requests'
+    description: 'Check external links with browser-like HTTP requests and report broken or blocked URLs'
     required: false
     default: 'false'
 
@@ -57,10 +57,15 @@ inputs:
     required: false
     default: 'false'
 
+  fail-on-blocked:
+    description: 'Exit with error code if any links are blocked by remote anti-bot or auth defenses'
+    required: false
+    default: 'false'
+
   ignore-patterns:
     description: >
       Comma-separated list of regex patterns. Matching URLs are skipped during
-      link checking.  Example: "localhost,example\\.com,staging\\."
+      link checking. Example: "localhost,example\\.com,staging\\."
     required: false
     default: ''
 
@@ -74,6 +79,31 @@ inputs:
     required: false
     default: '20'
 
+  user-agent:
+    description: 'User-Agent header used for link-check requests'
+    required: false
+    default: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
+
+  accept-language:
+    description: 'Accept-Language header used for link-check requests'
+    required: false
+    default: 'en-US,en;q=0.9'
+
+  retry-with-get-statuses:
+    description: 'Comma-separated HTTP status codes that should retry with GET after an initial HEAD request'
+    required: false
+    default: '401,403,405,406,999'
+
+  blocked-statuses:
+    description: 'Comma-separated HTTP status codes that should be classified as blocked instead of broken'
+    required: false
+    default: '401,403,429,999'
+
+  max-redirects:
+    description: 'Maximum number of redirects to follow per external URL'
+    required: false
+    default: '5'
+
 outputs:
   modified-files:
     description: 'Number of HTML files that were modified'
@@ -82,6 +112,10 @@ outputs:
   broken-links:
     description: 'JSON array of broken link objects { url, status } (empty array when check-links is false)'
     value: ${{ steps.process.outputs.broken-links }}
+
+  blocked-links:
+    description: 'JSON array of blocked link objects { url, status } (empty array when check-links is false)'
+    value: ${{ steps.process.outputs.blocked-links }}
 
   checked-links:
     description: 'Total number of unique external links checked'
@@ -94,16 +128,22 @@ runs:
       id: process
       shell: bash
       env:
-        SITE_DIR:             ${{ inputs.site-dir }}
-        OPT_NOFOLLOW:         ${{ inputs.nofollow }}
-        OPT_NOOPENER:         ${{ inputs.noopener }}
-        OPT_NOREFERRER:       ${{ inputs.noreferrer }}
-        OPT_EXTERNAL_ONLY:    ${{ inputs.external-only }}
-        OPT_TARGET_BLANK:     ${{ inputs.external-target-blank }}
-        OPT_STRIP_TRACKING:   ${{ inputs.strip-tracking-params }}
-        OPT_CHECK_LINKS:      ${{ inputs.check-links }}
-        OPT_FAIL_ON_BROKEN:   ${{ inputs.fail-on-broken }}
-        OPT_IGNORE_PATTERNS:  ${{ inputs.ignore-patterns }}
-        OPT_TIMEOUT:          ${{ inputs.timeout }}
-        OPT_CONCURRENCY:      ${{ inputs.concurrency }}
+        SITE_DIR: ${{ inputs.site-dir }}
+        OPT_NOFOLLOW: ${{ inputs.nofollow }}
+        OPT_NOOPENER: ${{ inputs.noopener }}
+        OPT_NOREFERRER: ${{ inputs.noreferrer }}
+        OPT_EXTERNAL_ONLY: ${{ inputs.external-only }}
+        OPT_TARGET_BLANK: ${{ inputs.external-target-blank }}
+        OPT_STRIP_TRACKING: ${{ inputs.strip-tracking-params }}
+        OPT_CHECK_LINKS: ${{ inputs.check-links }}
+        OPT_FAIL_ON_BROKEN: ${{ inputs.fail-on-broken }}
+        OPT_FAIL_ON_BLOCKED: ${{ inputs.fail-on-blocked }}
+        OPT_IGNORE_PATTERNS: ${{ inputs.ignore-patterns }}
+        OPT_TIMEOUT: ${{ inputs.timeout }}
+        OPT_CONCURRENCY: ${{ inputs.concurrency }}
+        OPT_USER_AGENT: ${{ inputs.user-agent }}
+        OPT_ACCEPT_LANGUAGE: ${{ inputs.accept-language }}
+        OPT_RETRY_WITH_GET_STATUSES: ${{ inputs.retry-with-get-statuses }}
+        OPT_BLOCKED_STATUSES: ${{ inputs.blocked-statuses }}
+        OPT_MAX_REDIRECTS: ${{ inputs.max-redirects }}
       run: node "${{ github.action_path }}/index.js"
