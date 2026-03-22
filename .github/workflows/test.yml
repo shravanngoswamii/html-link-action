@@ -1,0 +1,52 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node: ['18', '20', '22']
+
+    name: Node ${{ matrix.node }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Run tests
+        run: node --test test/test.js
+
+  # Self-test: run the action against the playground HTML
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run action on playground (nofollow + strip-tracking)
+        uses: ./
+        id: links
+        with:
+          site-dir: playground
+          nofollow: true
+          strip-tracking-params: true
+          external-only: true
+
+      - name: Verify output
+        run: |
+          echo "Modified files : ${{ steps.links.outputs.modified-files }}"
+          # playground/index.html should have been modified
+          if [ "${{ steps.links.outputs.modified-files }}" -lt 1 ]; then
+            echo "Expected at least 1 modified file"
+            exit 1
+          fi
+
+      - name: Restore playground after self-test
+        run: git checkout -- playground/

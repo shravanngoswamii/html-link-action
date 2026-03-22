@@ -1,0 +1,112 @@
+name: 'HTML Link Processor'
+description: >
+  Post-process a static HTML site: add rel attributes (nofollow/noopener/noreferrer),
+  add target="_blank" to external links, strip tracking parameters, and optionally
+  check every external link for broken URLs.
+
+author: 'shravanngoswamii'
+
+branding:
+  icon: 'link'
+  color: 'purple'
+
+inputs:
+  site-dir:
+    description: 'Path to the generated static site directory'
+    required: false
+    default: '__site'
+
+  nofollow:
+    description: 'Add rel="nofollow" to links'
+    required: false
+    default: 'false'
+
+  noopener:
+    description: 'Add rel="noopener" to links'
+    required: false
+    default: 'false'
+
+  noreferrer:
+    description: 'Add rel="noreferrer" to links'
+    required: false
+    default: 'false'
+
+  external-only:
+    description: >
+      When true (default), rel/target modifications only apply to external links
+      (href starting with http:// or https://).  Set to false to apply to all links.
+    required: false
+    default: 'true'
+
+  external-target-blank:
+    description: 'Add target="_blank" to external links'
+    required: false
+    default: 'false'
+
+  strip-tracking-params:
+    description: >
+      Strip common tracking query parameters from external URLs
+      (utm_*, fbclid, gclid, msclkid, twclid, mc_eid, ref).
+    required: false
+    default: 'false'
+
+  check-links:
+    description: 'Check all external links for broken URLs via HTTP HEAD requests'
+    required: false
+    default: 'false'
+
+  fail-on-broken:
+    description: 'Exit with error code if any broken links are found (requires check-links: true)'
+    required: false
+    default: 'false'
+
+  ignore-patterns:
+    description: >
+      Comma-separated list of regex patterns. Matching URLs are skipped during
+      link checking.  Example: "localhost,example\\.com,staging\\."
+    required: false
+    default: ''
+
+  timeout:
+    description: 'Timeout in milliseconds for each link-check request'
+    required: false
+    default: '5000'
+
+  concurrency:
+    description: 'Maximum number of concurrent link-check requests'
+    required: false
+    default: '20'
+
+outputs:
+  modified-files:
+    description: 'Number of HTML files that were modified'
+    value: ${{ steps.process.outputs.modified-files }}
+
+  broken-links:
+    description: 'JSON array of broken link objects { url, status } (empty array when check-links is false)'
+    value: ${{ steps.process.outputs.broken-links }}
+
+  checked-links:
+    description: 'Total number of unique external links checked'
+    value: ${{ steps.process.outputs.checked-links }}
+
+runs:
+  using: composite
+  steps:
+    - name: Process HTML links
+      id: process
+      shell: bash
+      env:
+        SITE_DIR:             ${{ inputs.site-dir }}
+        OPT_NOFOLLOW:         ${{ inputs.nofollow }}
+        OPT_NOOPENER:         ${{ inputs.noopener }}
+        OPT_NOREFERRER:       ${{ inputs.noreferrer }}
+        OPT_EXTERNAL_ONLY:    ${{ inputs.external-only }}
+        OPT_TARGET_BLANK:     ${{ inputs.external-target-blank }}
+        OPT_STRIP_TRACKING:   ${{ inputs.strip-tracking-params }}
+        OPT_CHECK_LINKS:      ${{ inputs.check-links }}
+        OPT_FAIL_ON_BROKEN:   ${{ inputs.fail-on-broken }}
+        OPT_IGNORE_PATTERNS:  ${{ inputs.ignore-patterns }}
+        OPT_TIMEOUT:          ${{ inputs.timeout }}
+        OPT_CONCURRENCY:      ${{ inputs.concurrency }}
+      run: node "${{ github.action_path }}/index.js"

@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HTML Link Processor — Playground</title>
+  <script src="../lib.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0d1117;
+      --bg-panel:   #161b22;
+      --bg-input:   #0d1117;
+      --border:     #30363d;
+      --text:       #e6edf3;
+      --text-muted: #8b949e;
+      --accent:     #58a6ff;
+      --green:      #3fb950;
+      --yellow:     #d29922;
+      --red:        #f85149;
+      --row-before: #2d1f1f;
+      --row-after:  #1a2d1a;
+      --bdr-before: #6e3535;
+      --bdr-after:  #2d5a2d;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: var(--bg-panel);
+    }
+    header h1 { font-size: 1.1rem; font-weight: 600; }
+    header p  { font-size: 0.85rem; color: var(--text-muted); }
+    header a  { color: var(--accent); text-decoration: none; }
+    header a:hover { text-decoration: underline; }
+    .badge {
+      background: #238636;
+      color: #fff;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 12px;
+      letter-spacing: .04em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .options-panel {
+      border-right: 1px solid var(--border);
+      background: var(--bg-panel);
+      padding: 16px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .options-panel h2 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+    }
+    .opt-section { display: flex; flex-direction: column; gap: 8px; }
+    .opt-section h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-muted);
+      margin-bottom: 2px;
+    }
+    .opt-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      line-height: 1.4;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .opt-label input[type=checkbox] {
+      margin-top: 2px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .opt-label small {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .divider { height: 1px; background: var(--border); }
+
+    .editor-area {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .editor-split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      flex: 1;
+      min-height: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .pane { display: flex; flex-direction: column; min-height: 0; }
+    .pane + .pane { border-left: 1px solid var(--border); }
+
+    .pane-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .pane-actions { display: flex; gap: 6px; }
+
+    textarea {
+      flex: 1;
+      background: var(--bg-input);
+      color: var(--text);
+      border: none;
+      outline: none;
+      resize: none;
+      padding: 12px;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      tab-size: 2;
+    }
+    textarea::placeholder { color: var(--text-muted); }
+
+    .btn {
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background .1s;
+    }
+    .btn:hover { background: #30363d; }
+    .btn-primary { background: #238636; border-color: #2ea043; color: #fff; }
+    .btn-primary:hover { background: #2ea043; }
+
+    .results-panel {
+      padding: 16px;
+      overflow-y: auto;
+      max-height: 340px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .results-empty {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .stats-bar { display: flex; gap: 20px; flex-wrap: wrap; font-size: 0.8rem; }
+    .stat { display: flex; align-items: center; gap: 6px; }
+    .stat-num { font-weight: 700; font-size: 1rem; }
+    .stat-num.green  { color: var(--green); }
+    .stat-num.yellow { color: var(--yellow); }
+    .stat-num.muted  { color: var(--text-muted); }
+    .stat-label { color: var(--text-muted); }
+
+    .section-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .change-cards { display: flex; flex-direction: column; gap: 8px; }
+    .change-card {
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+      font-size: 0.75rem;
+    }
+    .change-row {
+      display: flex;
+      align-items: flex-start;
+      padding: 6px 10px;
+      gap: 8px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+    .change-row.before { background: var(--row-before); border-bottom: 1px solid var(--bdr-before); }
+    .change-row.after  { background: var(--row-after); }
+    .change-sign { font-weight: 700; flex-shrink: 0; width: 14px; }
+    .change-row.before .change-sign { color: var(--red); }
+    .change-row.after  .change-sign { color: var(--green); }
+
+    .tok-attr  { color: var(--accent); }
+    .tok-value { color: #a8daab; }
+    .tok-new   {
+      color: var(--green);
+      font-weight: 600;
+      background: rgba(63,185,80,.15);
+      border-radius: 2px;
+      padding: 0 2px;
+    }
+
+    .link-list { display: flex; flex-direction: column; gap: 4px; }
+    .link-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .link-item:last-child { border-bottom: none; }
+    .link-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+    .link-url {
+      color: var(--accent);
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+    .link-url:hover { text-decoration: underline; }
+    .link-tag {
+      font-size: 0.7rem;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: #21262d;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .link-tag.modified { border-color: var(--green); color: var(--green); background: rgba(63,185,80,.1); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>&#9881; HTML Link Processor</h1>
+    <p>Live playground &mdash; <a href="https://github.com/shravanngoswamii/html-link-action" target="_blank" rel="noopener">html-link-action</a></p>
+  </div>
+  <span class="badge">v1</span>
+</header>
+
+<div class="layout">
+
+  <aside class="options-panel">
+    <h2>Options</h2>
+
+    <div class="opt-section">
+      <h3>rel attributes</h3>
+      <label class="opt-label">
+        <input type="checkbox" id="opt-nofollow">
+        <span>nofollow<small>Instructs crawlers not to follow the link</small></span>
+      </label>
+      <label class="opt-label">
+        <input type="checkbox" id="opt-noopener">
+        <span>noopener<small>Prevents the opened page accessing <code>window.opener</code></small></span>
+      </label>
+      <label class="opt-label">
+        <input type="checkbox" id="opt-noreferrer">
+        <span>noreferrer<small>Omits the Referer header when navigating</small></span>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="opt-section">
+      <h3>Scope</h3>
+      <label class="opt-label">
+        <input type="checkbox" id="opt-external-only" checked>
+        <span>External links only<small>Only modify http:// and https:// links</small></span>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="opt-section">
+      <h3>Target</h3>
+      <label class="opt-label">
+        <input type="checkbox" id="opt-target-blank">
+        <span>target=&quot;_blank&quot;<small>Open external links in a new tab</small></span>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="opt-section">
+      <h3>URL Cleanup</h3>
+      <label class="opt-label">
+        <input type="checkbox" id="opt-strip-tracking">
+        <span>Strip tracking params<small>Remove utm_*, fbclid, gclid, msclkid&hellip;</small></span>
+      </label>
+    </div>
+
+    <div class="divider"></div>
+
+    <div style="margin-top: auto;">
+      <button class="btn btn-primary" onclick="loadSample()" style="width:100%">Load sample HTML</button>
+    </div>
+  </aside>
+
+  <div class="editor-area">
+
+    <div class="editor-split">
+      <div class="pane">
+        <div class="pane-header">
+          <span>Input HTML</span>
+          <div class="pane-actions">
+            <button class="btn" onclick="clearInput()">Clear</button>
+          </div>
+        </div>
+        <textarea id="input" spellcheck="false" placeholder="Paste your HTML here…"></textarea>
+      </div>
+
+      <div class="pane">
+        <div class="pane-header">
+          <span>Output HTML</span>
+          <div class="pane-actions">
+            <button class="btn" id="copy-btn" onclick="copyOutput()">Copy</button>
+          </div>
+        </div>
+        <textarea id="output" readonly spellcheck="false" placeholder="Output will appear here…"></textarea>
+      </div>
+    </div>
+
+    <div class="results-panel" id="results-panel">
+      <div class="results-empty" id="results-empty">Configure options above and paste HTML to see results.</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const P = HtmlLinkProcessor;
+
+  const inputEl   = document.getElementById('input');
+  const outputEl  = document.getElementById('output');
+  const resultsEl = document.getElementById('results-panel');
+  const emptyEl   = document.getElementById('results-empty');
+
+  const OPT_IDS = [
+    'opt-nofollow', 'opt-noopener', 'opt-noreferrer',
+    'opt-external-only', 'opt-target-blank', 'opt-strip-tracking',
+  ];
+
+  function getOpts() {
+    const cb = id => document.getElementById(id).checked;
+    return {
+      nofollow:      cb('opt-nofollow'),
+      noopener:      cb('opt-noopener'),
+      noreferrer:    cb('opt-noreferrer'),
+      externalOnly:  cb('opt-external-only'),
+      targetBlank:   cb('opt-target-blank'),
+      stripTracking: cb('opt-strip-tracking'),
+    };
+  }
+
+  function process() {
+    const html = inputEl.value;
+    if (!html.trim()) { outputEl.value = ''; showEmpty(); return; }
+
+    const opts   = getOpts();
+    const output = P.processHtml(html, opts);
+    outputEl.value = output;
+
+    renderResults(html, output, P.buildChanges(html, output), P.extractExternalLinks(html));
+  }
+
+  function showEmpty() {
+    resultsEl.innerHTML = '';
+    resultsEl.appendChild(emptyEl);
+    emptyEl.style.display = '';
+  }
+
+  function renderResults(input, output, changes, extLinks) {
+    resultsEl.innerHTML = '';
+
+    const modifiedUrls = new Set(changes.map(c => {
+      const m = c.before.match(/href\s*=\s*["']?([^"'\s>]+)/i);
+      return m ? m[1] : null;
+    }).filter(Boolean));
+
+    const statsEl = el('div', 'stats-bar');
+    statsEl.appendChild(statEl(changes.length,  'links modified',       changes.length > 0 ? 'yellow' : 'muted'));
+    statsEl.appendChild(statEl(extLinks.length, 'external links found', 'green'));
+    statsEl.appendChild(statEl(output.length - input.length, 'bytes delta', 'muted'));
+    resultsEl.appendChild(statsEl);
+
+    if (changes.length > 0) {
+      const sec = el('div');
+      const t = el('div', 'section-title');
+      t.textContent = `Changes (${changes.length})`;
+      sec.appendChild(t);
+      const cards = el('div', 'change-cards');
+      for (const { before, after } of changes) {
+        const card = el('div', 'change-card');
+        card.appendChild(diffRow('before', before, null));
+        card.appendChild(diffRow('after',  after,  before));
+        cards.appendChild(card);
+      }
+      sec.appendChild(cards);
+      resultsEl.appendChild(sec);
+    }
+
+    if (extLinks.length > 0) {
+      const sec = el('div');
+      const t = el('div', 'section-title');
+      t.textContent = `External links (${extLinks.length})`;
+      sec.appendChild(t);
+      const note = el('div');
+      note.style.cssText = 'font-size:.75rem;color:var(--text-muted);margin-bottom:8px';
+      note.textContent = 'Link checking requires CI — browsers cannot verify external URLs due to CORS. Use check-links: true in your workflow.';
+      sec.appendChild(note);
+      const list = el('div', 'link-list');
+      for (const url of extLinks) {
+        const item = el('div', 'link-item');
+        item.appendChild(el('div', 'link-dot'));
+        const a = document.createElement('a');
+        a.href = url; a.textContent = url; a.target = '_blank';
+        a.rel = 'noopener noreferrer'; a.className = 'link-url';
+        const tag = el('div', 'link-tag' + (modifiedUrls.has(url) ? ' modified' : ''));
+        tag.textContent = modifiedUrls.has(url) ? 'modified' : 'unchanged';
+        item.appendChild(a);
+        item.appendChild(tag);
+        list.appendChild(item);
+      }
+      sec.appendChild(list);
+      resultsEl.appendChild(sec);
+    }
+
+    if (changes.length === 0 && extLinks.length === 0) {
+      const msg = el('div', 'results-empty');
+      msg.textContent = 'No external links found in the input HTML.';
+      resultsEl.appendChild(msg);
+    }
+  }
+
+  function diffRow(kind, tag, compareTo) {
+    const row  = el('div', 'change-row ' + kind);
+    const sign = el('div', 'change-sign');
+    sign.textContent = kind === 'before' ? '−' : '+';
+    row.appendChild(sign);
+    const code = document.createElement('span');
+    code.innerHTML = highlightTag(tag, kind === 'after' ? compareTo : null);
+    row.appendChild(code);
+    return row;
+  }
+
+  function highlightTag(tag, compareWith) {
+    const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const inner = tag.match(/^<a([\s\S]*)>$/i);
+    if (!inner) return esc(tag);
+
+    const attrs        = inner[1];
+    const compareAttrs = compareWith ? (compareWith.match(/^<a([\s\S]*)>$/i) || [])[1] || '' : '';
+
+    let html = '&lt;<span style="color:#79c0ff">a</span>';
+    const attrRe = /(\s+)(\w[\w-]*)(\s*=\s*)("([^"]*)")|(\s+)(\w[\w-]*)/g;
+    let m;
+    let last = 0;
+    while ((m = attrRe.exec(attrs)) !== null) {
+      if (m[2]) {
+        const isNew = compareWith !== null && !compareAttrs.includes(m[2] + '=');
+        html += m[1];
+        if (isNew) {
+          html += `<span class="tok-new">${esc(m[2])}=${esc(m[4])}</span>`;
+        } else {
+          html += `<span class="tok-attr">${esc(m[2])}</span>${m[3]}<span class="tok-value">&quot;${esc(m[5])}&quot;</span>`;
+        }
+      } else if (m[7]) {
+        html += m[6] + `<span class="tok-attr">${esc(m[7])}</span>`;
+      }
+      last = m.index + m[0].length;
+    }
+    html += esc(attrs.slice(last)) + '&gt;';
+    return html;
+  }
+
+  function el(tag, className) {
+    const e = document.createElement(tag);
+    if (className) e.className = className;
+    return e;
+  }
+
+  function statEl(num, label, colorClass) {
+    const s = el('div', 'stat');
+    const n = el('div', 'stat-num ' + colorClass);
+    n.textContent = (num > 0 && colorClass !== 'muted' ? '+' : '') + num;
+    const l = el('div', 'stat-label');
+    l.textContent = label;
+    s.appendChild(n); s.appendChild(l);
+    return s;
+  }
+
+  window.clearInput = () => { inputEl.value = ''; outputEl.value = ''; showEmpty(); };
+
+  window.copyOutput = () => {
+    if (!outputEl.value) return;
+    navigator.clipboard.writeText(outputEl.value).then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
+  };
+
+  window.loadSample = () => { inputEl.value = SAMPLE.trim(); process(); };
+
+  inputEl.addEventListener('input', process);
+  OPT_IDS.forEach(id => document.getElementById(id).addEventListener('change', process));
+
+  const SAMPLE = `
+<a href="https://github.com/JuliaLang?utm_source=playground&utm_medium=demo&utm_campaign=test">
+  JuliaLang on GitHub
+</a>
+
+<a href="https://docs.julialang.org" rel="noopener">
+  Julia Documentation
+</a>
+
+<a href="https://julialang.org/blog/?utm_source=newsletter&fbclid=abc123&q=security">
+  Julia Blog post (mixed params)
+</a>
+
+<a href="/packages/CSV/">CSV.jl package page</a>
+
+<a href="#top">Back to top</a>
+
+<a name="section-1">Section anchor</a>
+
+<a href="https://nvd.nist.gov/vuln/detail/CVE-2021-44228" class="cve-link" data-id="CVE-2021-44228">
+  CVE-2021-44228 on NVD
+</a>`;
+
+  loadSample();
+})();
+</script>
+</body>
+</html>
