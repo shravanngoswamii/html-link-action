@@ -1,6 +1,6 @@
 # HTML Link Processor
 
-A GitHub composite action that post-processes a static HTML site to modify and validate links. Pure Node.js — no pip installs, no npm dependencies, works on any GitHub-hosted runner.
+A GitHub composite action that post-processes a static HTML site to modify and validate links. Pure Node.js -- no pip installs, no npm dependencies, works on any GitHub-hosted runner.
 
 ## Features
 
@@ -112,3 +112,38 @@ A GitHub composite action that post-processes a static HTML site to modify and v
 - **Link checking** sends `HEAD` first; falls back to `GET` if the server returns 405. Retries once on 429 or 5xx. Responses ≥ 400 and network errors are reported as broken.
 - **No external dependencies** — pure Node.js stdlib only. Node.js is pre-installed on all standard GitHub-hosted runners.
 - **Live playground** — [shravanngoswamii.github.io/html-link-action/playground/](https://shravanngoswamii.github.io/html-link-action/playground/)
+
+## Releasing
+
+Releases are fully automated via `.github/workflows/release.yml`. To cut a release, just include a bump keyword anywhere in your commit message when pushing (or merging a PR) to `main`:
+
+| Keyword in commit message | What happens |
+|---|---|
+| `[patch]` | `v1.2.3` → `v1.2.4` |
+| `[minor]` | `v1.2.3` → `v1.3.0` |
+| `[major]` | `v1.2.3` → `v2.0.0` |
+
+The workflow will automatically:
+1. Compute the next semver tag from the latest existing tag
+2. Push the new tag (e.g. `v1.2.4`)
+3. Create a GitHub Release with auto-generated notes
+4. Fast-forward the floating major branch (e.g. `v1`) so `@v1` users get the update
+
+Commits without any keyword are ignored — nothing is tagged or released.
+
+**Examples:**
+```
+git commit -m "fix: handle self-closing anchor tags [patch]"
+git commit -m "feat: add support for data-href attributes [minor]"
+git commit -m "refactor: drop Node 18 support [major]"
+```
+
+**First release:** If no tags exist yet, the first `[patch]` produces `v0.0.1`, `[minor]` produces `v0.1.0`, and `[major]` produces `v1.0.0`.
+
+### Versioning strategy
+
+| Ref | Meaning |
+|---|---|
+| `@v1` | Latest v1.x — recommended for most users |
+| `@v1.2.3` | Exact version — use for reproducibility |
+| `@main` | Development tip — unstable |

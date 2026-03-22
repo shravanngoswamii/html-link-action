@@ -1,8 +1,5 @@
 name: 'HTML Link Processor'
-description: >
-  Post-process a static HTML site: add rel attributes (nofollow/noopener/noreferrer),
-  add target="_blank" to external links, strip tracking parameters, and optionally
-  check every external link for broken URLs.
+description: 'Post-process a static HTML site: add rel=nofollow/noopener/noreferrer, target=_blank, strip tracking, check links.'
 
 author: 'shravanngoswamii'
 
